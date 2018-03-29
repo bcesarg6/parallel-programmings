@@ -30,6 +30,9 @@ static int n_prods;
 static int n_cons;
 static int tam_buffer;
 
+static int* buffer;
+static int buffer_pos = 0;
+
 sem_t sp;
 sem_t sc;
 sem_t se;
@@ -99,17 +102,97 @@ void checkData(){
 }
 
 /* Metodo do produtor */
-static void *produzir(){
+static void *produzir(void* arg){
+	int i,j,loop;
+	int sum;
+	int* tid = (int*) arg;
+	int mat[SIZE][SIZE];
+
 	time_t time;
-	/* Intializes random number generator */
     srand((unsigned) time(&time));
 
-    
+    /* Preenche a matriz local da thread */
+    for(i = 0; i < SIZE; i++){
+    	for(j = 0; j < SIZE; j++){
+    		mat[i][j] = rand() % 10;
+    	}
+    }    
+
+    while(1){
+    	sem_wait(&sp); // Decresce o semaforo dos produtores
+
+	    /* Processamento da thread x 10 (vulgo calc determinante) */
+	    sum = 0;
+
+	    for(loop = 0; loop < 10; loop++){
+
+	    	for(i = 0; i < SIZE; i++){
+	    		for(j = 0; j < SIZE; j++){
+	    			sum += mat[i][j];
+
+	    			mat[i][j]++;
+	    		
+	    			if (i == j){
+	    				sum = sum * mat[i][i];
+	    			}
+	    		}
+	    	}
+
+	    }
+
+	    /* REGIÃO CRITICA : ESCRITA NO BUFFER */
+	    sem_wait(&se);
+	    printf("Thread Produtora %d escrevendo no buffer -> %d", *tid, sum);
+	    buffer[buffer_pos] = sum;
+	    buffer_pos++;
+	    sem_post(&se);
+
+	    sem_post(&sc); // Aumenta o semaforo dos consumidores
+    }
 
 }
 
 /* Metodo do consumidor */
 static void *consumir(){
+	int i,j;
+	int mat[SIZE][SIZE];
+	int read;
+
+	time_t time;
+    srand((unsigned) time(&time));
+
+    /* Preenche a matriz local da thread */
+    for(i = 0; i < SIZE; i++){
+    	for(j = 0; j < SIZE; j++){
+    		mat[i][j] = rand() % SIZE;
+    	}
+    }
+
+    while(1){
+    	sem_wait(&sc); // Decresce o semaforo dos consumidores
+
+    	/* REGIÃO CRITICA : LER O BUFFER e DECREMENTAR A POSIÇÃO */
+	    sem_wait(&se);
+	    read = buffer[buffer_pos];
+	    buffer_pos--;
+	    printf("Thread Consumidora %d lendo do buffer <- %d", *tid);
+	    sem_post(&se);
+
+
+	    /* Processamento da thread */
+    	for(i = 0; i < SIZE; i++){
+    		for(j = 0; j < SIZE; j++){
+    			mat[i][j]-= read;
+    		
+    			if (i == j){
+    				mat[i][i] = mat[i][i] * -1;
+    			}
+    		}
+    	}
+
+	    sem_post(&sp); // Aumenta o semaforo dos produtores
+    }
+
 }
 
 
@@ -120,8 +203,16 @@ int main(int argc, char *argv[]){
 	checkData();
 	printf("Argumentos lidos\n");
 
+	buffer = malloc(sizeof(int) * tam_buffer);
+
 	int thread_status; //
 	int i;
+	
+	int* ptids;
+	int* ctids;
+	
+	ptids = malloc(sizeof(int) * n_prods);
+	ctids = malloc(sizeof(int) * n_cons);
 
 	//semaforos
 	sem_init(&sp, 0, n_prods);
@@ -136,7 +227,9 @@ int main(int argc, char *argv[]){
 
 	printf("\n --- Lançando threads produtoras --- \n");
 	for(i = 0; i < n_prods; i++){
-		thread_status = pthread_create(&produtores[i], NULL, produzir, NULL);
+		ptids[i] = i;
+
+		thread_status = pthread_create(&produtores[i], NULL, produzir, &ptids[i]);
         if (thread_status){
             printf("ERROR: retorno de pthread_create() é %d\n", thread_status);
             exit(-1);
@@ -145,7 +238,9 @@ int main(int argc, char *argv[]){
 
 	printf("\n --- Lançando threads consumidoras --- \n");
 	for(i = 0; i < n_cons; i++){
-		thread_status = pthread_create(&consumidores[i], NULL, consumir, NULL);
+		ctids[i] = i;
+
+		thread_status = pthread_create(&consumidores[i], NULL, consumir, &ctids[i]);
         if (thread_status){
             printf("ERROR: retorno de pthread_create() é %d\n", thread_status);
             exit(-1);
