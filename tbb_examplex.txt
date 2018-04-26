@@ -1,0 +1,180 @@
+*** Some Primitives
+
+- parallel_for
+- parallel_reduce
+- parallel_do
+- task_group
+
+*** parallel_for
+
+#include "tbb/tbb.h"
+using namespace tbb;
+...
+void print( size_t n) {
+   printf("hellow world %d\n", n);
+}
+void print_range( const blocked_range<size_t> & r ){
+     for( size_t i = r.begin(); i != r.end(); ++i )
+         printf("hello from range: %d\n", i);
+}
+void doit() {
+      parallel_for<size_t>( 1, 10, 1, print );
+      parallel_for( blocked_range<size_t>(1,10), print_range );
+}
+
+
+*** parallel_reduce
+
+#include "tbb/parallel_reduce.h"
+#include "tbb/blocked_range.h"
+
+using namespace tbb;
+
+struct Sum {
+    float value;
+    Sum() : value(0) {}
+    Sum( Sum& s, split ) {value = 0;}
+    void operator()( const blocked_range<float*>& r ) {
+        float temp = value;
+        for( float* a=r.begin(); a!=r.end(); ++a ) {
+            temp += *a;
+        }
+        value = temp;
+    }
+    void join( Sum& rhs ) {value += rhs.value;}
+};
+
+float ParallelSum( float array[], size_t n ) {
+    Sum total;
+    parallel_reduce( blocked_range<float*>( array, array+n ),
+                     total );
+    return total.value;
+}
+
+*** parallel_do
+
+For example, consider the following serial code:
+
+void SerialApplyFooToList( const std::list<Item>& list ) {
+    for( std::list<Item>::const_iterator i=list.begin() i!=list.end(); ++i ) 
+        Foo(*i);
+}
+
+If Foo takes at least a few thousand instructions to run, you can get parallel speedup by converting the loop to use parallel_do. To do so, define an object with a const qualified operator(). This is similar to a C++ function object from the C++ standard header <functional>, except that operator() must be const.
+
+class ApplyFoo {
+public:
+    void operator()( Item& item ) const {
+        Foo(item);
+    }
+};
+
+The parallel form of SerialApplyFooToList is as follows:
+
+void ParallelApplyFooToList( const std::list<Item>& list ) {
+    parallel_do( list.begin(), list.end(), ApplyFoo() ); 
+}
+
+An invocation of parallel_do never causes two threads to act on an input iterator concurrently. Thus typical definitions of input iterators for sequential programs work correctly. This convenience makes parallel_do unscalable, because the fetching of work is serial. But in many situations, you still get useful speedup over doing things sequentially.
+
+There are two ways that parallel_do can acquire work scalably.
+
+- The iterators can be random-access iterators.
+
+- The body argument to parallel_do, if it takes a second argument feeder of type parallel_do<Item>&, can add more work by calling feeder.add(item). For example, suppose processing a node in a tree is a prerequisite to processing its descendants. With parallel_do, after processing a node, you could use feeder.add to add the descendant nodes. The instance of parallel_do does not terminate until all items have been processed.
+
+
+*** Thread Local Storage
+
+TBB provides two template classes for thread local storage. Both provide a access to a local element per thread and create the elements on demand. They differ in their intended use models:
+
+Class combinable provides thread-local storage for holding per-thread sub-computations that will later be reduced to a single result.
+
+Class enumerable_thread_specific provides thread-local storage that acts like an STL container with one element per thread. The container permits iterating over the elements using the usual STL iteration idioms. 
+
+typedef enumerable_thread_specific< std::pair<int,int> > CounterType;
+CounterType MyCounters (std::make_pair(0,0));
+
+struct Body {
+     void operator()(const tbb::blocked_range<int> &r) const {
+         CounterType::reference my_counter = MyCounters.local();
+          ++my_counter.first;
+          for (int i = r.begin(); i != r.end(); ++i)
+              ++my_counter.second;
+     }
+};
+
+? Quantas threads sÃ£o criadas ?
+
+int main() {
+     parallel_for( blocked_range<int>(0, 100000000), Body());
+
+     for (CounterType::const_iterator i = MyCounters.begin();
+          i != MyCounters.end();  ++i)
+    {
+         printf("Thread stats:\n");
+            printf("  calls to operator(): %d", i->first);
+            printf("  total # of iterations executed: %d\n\n",
+                 i->second);
+    }
+}
+
+*** Task Based Programming
+
+The class task_group, lets you easily create groups of potentially parallel tasks.
+
+ #include "tbb/task_group.h"
+
+    using namespace tbb;
+
+    int Fib(int n) {
+        if( n<2 ) {
+            return n;
+        } else {
+            int x, y;
+            task_group g;
+            g.run([&]{x=Fib(n-1);}); // spawn a task
+            g.run([&]{y=Fib(n-2);}); // spawn another task
+            g.wait();                // wait for both tasks to complete
+            return x+y;
+        }
+    }
+
+*** Synchronization Primitives
+
+TBB provides synchronization primitives for mutual exclusion and to perform atomic operations.  Mutual exclusion controls how many threads can simultaneously run a region of code. In Intel TBB, mutual exclusion is implemented by mutexes and locks. A mutex is an object on which a thread can acquire a lock. Only one thread at a time can have a lock on a mutex; other threads have to wait their turn.
+
+You can avoid mutual exclusion using atomic operations. When a thread performs an atomic operation, the other threads see it as happening instantaneously. The advantage of atomic operations is that they are relatively quick compared to locks, and do not suffer from deadlock and convoying. The disadvantage is that they only do a limited set of operations, and often these are not enough to synthesize more complicated operations efficiently.
+
+
+Node* FreeList;
+typedef tbb::spin_mutex FreeListMutexType;
+FreeListMutexType FreeListMutex;
+
+Node* AllocateNode() {
+    Node* n;
+    {
+        FreeListMutexType::scoped_lock lock(FreeListMutex);
+        n = FreeList;
+        if( n )
+            FreeList = n->next;
+    }
+    if( !n )
+        n = new Node();
+    return n;
+}
+
+void FreeNode( Node* n ) {
+    FreeListMutexType::scoped_lock lock(FreeListMutex);
+    n->next = FreeList;
+    FreeList = n;
+}
+
+*** Atomic Operations
+
+= x				read the value of x
+x=				write the value of x, and return it
+x.fetch_and_store(y)		do x=y and return the old value of x
+x.fetch_and_add(y)		do x+=y and return the old value of x
+x.compare_and_swap(y,z)		if x equals z, then do x=y. In either case, return old value of x.
+

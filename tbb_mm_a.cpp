@@ -3,6 +3,7 @@
 /* Author: Bruno Cesar, bcesar.g6@gmail.com | 2018 */
 
 #include "tbb/tbb.h"
+#include <sys/sysinfo.h>
 #include <stdlib.h>
 #include <time.h>
 #include <iostream>
@@ -10,7 +11,7 @@
 using namespace tbb;
 using namespace std;
 
-#define SIZE 100000
+#define SIZE 1000
 
 int matA[SIZE][SIZE];
 int matB[SIZE][SIZE];
@@ -44,6 +45,14 @@ void init(){
 			matB[i][j] = (rand() % 3) + 1;;
 		}
 	}
+
+	cout << "This system has " <<  get_nprocs_conf() <<" processors configured and " << get_nprocs() <<" processors available.\n";
+	int cpus = get_nprocs_conf();
+
+ 	int nDefThreads = tbb::task_scheduler_init::default_num_threads();
+ 	cout << "TBB configurado para " << nDefThreads << " threads paralelas." << endl;
+
+ 	tbb::task_scheduler_init init(2);
 }
 
 void printMat(int mat[SIZE][SIZE]){
