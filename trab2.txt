@@ -1,0 +1,23 @@
+/* Comunicação entre processos */
+
+-> Master / Slave
+
+	- O Mestre é o processo que gerencia as tarefas
+	- Os escravos que executam as tarefas. Seu estado default é agurdar requisições do mestre.
+
+	- Abordagem 1 : Mestre apenas gerencia
+	- Abordagem 2 : Mestre tambem é responsável por parte da computação útil do programa
+
+-> Heart beat 
+
+	- Inspirado no bombear de sangue do coração
+	- Todos processos se comunicam entre sí.
+	- Em dado momento da computação todos enviam mensagem.
+	- Noutro momento todos recebem a mensagem.
+
+/* Roubo de tarefa */
+Capacidade dos processos de organizar as tarefas a serem realizadas. Um processo ocioso pode "roubar" tarefas de um processo sobrecarregado OU então processos sobrecarregados podem
+
+/* Trabalho 2 */
+
+Implementar um programa do benchmark CAP usando MPI e uma estratégia de comunicação entre processos.

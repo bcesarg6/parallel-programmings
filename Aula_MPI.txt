@@ -1,0 +1,51 @@
+/* MPI */
+
+Programando para um cluster -> Memória compartilhada.
+A computação é distribuida pelas maquinas
+
+/* Configuração */
+A configuração de diretório deve ser a mesma em todas as maquinas.
+No linux -> instalar NFS. Exportar o /HOME e fazer com que as outras máquinas montem este diretório.
+
+/* Acesso */
+A comunicação entre as maquinas é feitas por SSH
+Ideal é configurar o SSH para não pedir senha.
+SSH_Kgen -> salvar a chave no diretório comum do cluster.
+
+Servidor de senhas: No linux -> instalar NIS -> Cadastra no servidor todos os usuários e suas senhas.
+
+/* Estrutura programa MPI - prefixo */
+
+	/* Prefixo */
+	#include <mpi.h>
+
+	1 - Função MPI_Init() : Inicializa o ambiente (Abre conexão entre as maquinas via SSH no modo mão dupla)
+
+	2 - Função MPI_Comm_size() : Define o tamanho do comunicador em  função do numero de processos gerenciados pelo comunicador.
+
+	3 - MPI_Comm_rank*() : Atribui o identificador para cada processo
+
+	/* Lógica do programa */
+	Função Send & Receive : realiza a troca de mensagens
+	Envio sincrono e assincrono.
+	
+	Sincrono : O processo espera a mensagem ser recebida por outro processo
+	
+	Assincrono : 
+
+	/* Finalização */
+	Função finalize()
+
+/* Compilando e executando */
+Compilador -> mpicc (Usa o gcc + realiza as linkagens)
+Para executar: mpirun <PARAMS> executavel
+
+Parametros importantes do mpirun:
+	-n : Quantidade de processos a serem instanciados
+ 	-host_file : recebe o arquivo de configuração para as maquinas
+
+
+CURSO DE MPI -> http://chryswoods.com/
+
+Usuario linXX
+Senha l!n0XX 
