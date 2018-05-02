@@ -49,3 +49,7 @@ CURSO DE MPI -> http://chryswoods.com/
 
 Usuario linXX
 Senha l!n0XX 
+
+clusterlecad@afsilva
+senha: Mudar123
+SAIR DO FRONTEND -> Maquina: machine-2-0 OU machine-2-1
