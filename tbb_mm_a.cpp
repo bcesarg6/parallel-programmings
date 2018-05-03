@@ -1,4 +1,4 @@
-/* Multiplicação de Matrizes */
+/* Multiplicação de Matrizes com TBB */
 /* Versão A : parallel-for	 */
 /* Author: Bruno Cesar, bcesar.g6@gmail.com | 2018 */
 
