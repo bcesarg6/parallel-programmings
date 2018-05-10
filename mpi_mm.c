@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <time.h>
 
-#define SIZE 4
+#define SIZE 100
 
 /* Dados globais */
 int matA[SIZE * SIZE];
@@ -50,8 +50,10 @@ void matmul(){
         }
     }
 
-    printf("O processo %d (START = %d E STOP = %d ) vai printar:\n", tid,start,stop);
-    printMat(matC);
+    if(SIZE < 5) {
+        printf("O processo %d (START = %d E STOP = %d ) vai printar:\n", tid,start,stop);
+        printMat(matC);
+    }
 }
 
 
@@ -92,6 +94,11 @@ int main(int argc, char **argv){
     // Get the tID number of this core in the MPI cluster
     MPI_Comm_rank( MPI_COMM_WORLD, &tid );
 
+    /* Configuração para paralelização */
+    workload = SIZE / nprocs;
+    start = tid * workload;
+    stop = start + workload;
+
     /* Somente o processo 0 inicializa os dados */
     if(tid != 0){
         /* Os demais processos esperam os dados */
@@ -107,11 +114,6 @@ int main(int argc, char **argv){
         }
     }
 
-    /* Configuração para paralelização */
-    workload = SIZE / nprocs;
-    start = tid * workload;
-    stop = start + workload;
-
     matmul();
 
     /* Os processos diferentes de 0 irão enviar os dados calculados para o processo 0 */
@@ -120,7 +122,7 @@ int main(int argc, char **argv){
     } else {
 
         for (i = 1; i < nprocs; i++){
-            MPI_Recv( matC + (i * workload), workload * SIZE, MPI_INT, i, 0, MPI_COMM_WORLD, 0);
+            MPI_Recv( matC + (i * workload * SIZE), workload * SIZE, MPI_INT, i, 0, MPI_COMM_WORLD, 0);
         }
 
         printf("O processo 0 -> Printando a matriz C = A * B\n");
@@ -131,37 +133,4 @@ int main(int argc, char **argv){
     MPI_Finalize();
 
     return 0;
-} 
-
-/* *******************************************************************
-if (rank != 0)
-    {
-        // if we are not the master process (rank 0) then we need to
-        // tell that process how many iterations we performed
-        MPI_Send( &nloops, 1, MPI_INT, 0, 0, MPI_COMM_WORLD );
-    }
-    else
-    {
-        // if we are the master process, then we need to wait to be
-        // told how many iterations were performed by each other
-        // process
-        total_nloops = nloops;
-
-        for (i=1; i<nprocs; ++i)
-        {
-            MPI_Recv( &nloops, 1, MPI_INT, i, 0, MPI_COMM_WORLD, 0 );
-
-            total_nloops += nloops;
-        }
-
-        // ok - are there any more loops to run?
-        nloops = 0;
-
-        for (i=total_nloops; i<1000; ++i)
-        {
-            ++nloops;
-        }
-
-        printf("Process 0 performed the remaining %d iterations of the loop\n",
-               nloops);
-    } */
+}
