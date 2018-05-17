@@ -1,5 +1,6 @@
 #include <stdio.h>
 
+
 #ifdef _OPENMP
     #include <omp.h>
 #else

@@ -57,7 +57,7 @@ void matmul(){
 	{
 		nloops = 0;
 
-		#pragma omp for
+		#pragma omp parallel for
 		for(i = 0; i < SIZE; i++){
 
 			for(j = 0; j < SIZE; j++){
